@@ -24,12 +24,15 @@ If a number is larger than 26, then the remainder, after subtraction of 26, is t
 
 The ciphertext to be sent to Bob is thus "EQNVZ". Bob uses the matching key page and the same process, but in reverse, to obtain the plaintext. Here the key is subtracted from the ciphertext, again using modular arithmetic:
 
+~~~~
        E       Q       N       V       Z  ciphertext
     4 (E)  16 (Q)  13 (N)  21 (V)  25 (Z) ciphertext
 -  23 (X)  12 (M)   2 (C)  10 (K)  11 (L) key
 = -19       4      11      11      14     ciphertext – key
 =   7 (H)   4 (E)  11 (L)  11 (L)  14 (O) ciphertext – key (mod 26)
        H       E       L       L       O  → message
+~~~~
+
 Similar to the above, if a number is negative then 26 is added to make the number zero or higher.
 
 Thus Bob recovers Alice's plaintext, the message "HELLO". Both Alice and Bob destroy the key sheet immediately after use, thus preventing reuse and an attack against the cipher.”
@@ -42,53 +45,67 @@ Your programs must use the network calls we've discussed in class (send(), recv(
 
 Here are the specifications of the five programs:
 
-otp_enc_d: This program will run in the background as a daemon. Upon execution, otp_enc_d must output an error if it cannot be run due to a network error, such as the ports being unavailable. Its function is to perform the actual encoding, as described above in the Wikipedia quote. This program will listen on a particular port/socket, assigned when it is first ran (see syntax below). When a connection is made, otp_enc_d must call accept() to generate the socket used for actual communication, and then use a separate process to handle the rest of the transaction (see below), which will occur on the newly accepted socket.
+#### otp_enc_d: 
+This program will run in the background as a daemon. Upon execution, `otp_enc_d` must output an error if it cannot be run due to a network error, such as the ports being unavailable. Its function is to perform the actual encoding, as described above in the Wikipedia quote. This program will listen on a particular port/socket, assigned when it is first ran (see syntax below). When a connection is made, `otp_enc_d` must call accept() to generate the socket used for actual communication, and then use a separate process to handle the rest of the transaction (see below), which will occur on the newly accepted socket.
 
-In the child process of otp_enc_d, it must first check to make sure it is communicating with otp_enc (see otp_enc, below). After verifying that the connection to otp_enc_d is coming from otp_enc, then this child receives from otp_enc plaintext and a key via the communication socket (not the original listen socket). The otp_enc_d child will then write back the ciphertext to the otp_enc process that it is connected to via the same communication socket. Note that the key passed in must be at least as big as the plaintext.
+In the child process of `otp_enc_d`, it must first check to make sure it is communicating with `otp_enc` (see `otp_enc`, below). After verifying that the connection to `otp_enc_d` is coming from `otp_enc`, then this child receives from `otp_enc` plaintext and a key via the communication socket (not the original listen socket). The `otp_enc_d` child will then write back the ciphertext to the `otp_enc` process that it is connected to via the same communication socket. Note that the key passed in must be at least as big as the plaintext.
 
-Your version of otp_enc_d must support up to five concurrent socket connections. Again, only in the child process will the actual encryption take place, and the ciphertext be written back.
+Your version of `otp_enc_d` must support up to five concurrent socket connections. Again, only in the child process will the actual encryption take place, and the ciphertext be written back.
 
-In terms of creating that child process as described above, you may either create with fork() a new process every time a connection is made, or set up a pool of five processes at the beginning of the program, before connections are allowed, to handle your encryption tasks. Your system must be able to do five separate encryptions at once, using either method you choose.
+In terms of creating that child process as described above, you may either create with `fork()` a new process every time a connection is made, or set up a pool of five processes at the beginning of the program, before connections are allowed, to handle your encryption tasks. Your system must be able to do five separate encryptions at once, using either method you choose.
 
-Use this syntax for otp_enc_d:
+Use this syntax for `otp_enc_d`:
 
+```
 otp_enc_d listening_port
-listening_port is the port that otp_enc_d should listen on. You will always start otp_enc_d in the background, as follows (the port 57171 is just an example; yours should be able to use any port):
+```
+listening_port is the port that `otp_enc_d` should listen on. You will always start `otp_enc_d` in the background, as follows (the port 57171 is just an example; yours should be able to use any port):
 
-$ otp_enc_d 57171 &
-In all error situations, this program must output errors as appropriate (see grading script below for details), but should not crash or otherwise exit, unless the errors happen when the program is starting up (i.e. are part of the networking start up protocols like bind()). That is, if given bad input, once running, otp_enc_d should recognize the bad input, report an error to the screen, and continue to run. All error text must be output to stderr.
+```
+otp_enc_d 57171 &
+```
+In all error situations, this program must output errors as appropriate (see grading script below for details), but should not crash or otherwise exit, unless the errors happen when the program is starting up (i.e. are part of the networking start up protocols like bind()). That is, if given bad input, once running, `otp_enc_d` should recognize the bad input, report an error to the screen, and continue to run. All error text must be output to stderr.
 
 This program, and the other 3 network programs, should use "localhost" as the target IP address/host. This makes them use the actual computer they all share as the target for the networking connections.
 
-otp_enc: This program connects to otp_enc_d, and asks it to perform a one-time pad style encryption as detailed above. By itself, otp_enc doesn’t do the encryption - otp_end_d does. The syntax of otp_enc is as follows:
+`otp_enc`: This program connects to `otp_enc_d`, and asks it to perform a one-time pad style encryption as detailed above. By itself, `otp_enc` doesn’t do the encryption - otp_end_d does. The syntax of `otp_enc` is as follows:
 
+```
 otp_enc plaintext key port
-In this syntax, plaintext is the name of a file in the current directory that contains the plaintext you wish to encrypt. Similarly, key contains the encryption key you wish to use to encrypt the text. Finally, port is the port that otp_enc should attempt to connect to otp_enc_d on.
+```
+In this syntax, `plaintext` is the name of a file in the current directory that contains the plaintext you wish to encrypt. Similarly, key contains the encryption key you wish to use to encrypt the text. Finally, port is the port that `otp_enc` should attempt to connect to `otp_enc_d` on.
 
-When otp_enc receives the ciphertext back from otp_enc_d, it should output it to stdout. Thus, otp_enc can be launched in any of the following methods, and should send its output appropriately:
+When `otp_enc` receives the ciphertext back from `otp_enc_d`, it should output it to stdout. Thus, `otp_enc` can be launched in any of the following methods, and should send its output appropriately:
+~~~~
+otp_enc myplaintext mykey 57171
+otp_enc myplaintext mykey 57171 > myciphertext
+otp_enc myplaintext mykey 57171 > myciphertext &
+~~~~
 
-$ otp_enc myplaintext mykey 57171
-$ otp_enc myplaintext mykey 57171 > myciphertext
-$ otp_enc myplaintext mykey 57171 > myciphertext &
-If otp_enc receives key or plaintext files with bad characters in them, or the key file is shorter than the plaintext, it should exit with an error, and set the exit value to 1. This character validation can happen in either otp_enc or otp_enc_d, your choice. If otp_enc cannot find the port given, it should report this error to the screen (not into the plaintext or ciphertext files) with the bad port, and set the exit value to 2. Otherwise, on successfully running, otp_enc should set the exit value to 0.
+If `otp_enc` receives key or plaintext files with bad characters in them, or the key file is shorter than the plaintext, it should exit with an error, and set the exit value to 1. This character validation can happen in either `otp_enc` or `otp_enc_d`, your choice. If `otp_enc` cannot find the port given, it should report this error to the screen (not into the plaintext or ciphertext files) with the bad port, and set the exit value to 2. Otherwise, on successfully running, `otp_enc` should set the exit value to 0.
 
-otp_enc should NOT be able to connect to otp_dec_d, even if it tries to connect on the correct port - you'll need to have the programs reject each other. If this happens, otp_enc should report the rejection and then terminate itself.
+`otp_enc` should NOT be able to connect to `otp_dec_d`, even if it tries to connect on the correct port - you'll need to have the programs reject each other. If this happens, `otp_enc` should report the rejection and then terminate itself.
 
 All error text must be output to stderr.
 
-otp_dec_d: This program performs exactly like otp_enc_d, in syntax and usage. In this case, however, otp_dec_d will decrypt ciphertext it is given, using the passed-in ciphertext and key. Thus, it returns plaintext again to otp_dec.
+#### otp_dec_d: 
+This program performs exactly like `otp_enc_d`, in syntax and usage. In this case, however, `otp_dec_d` will decrypt ciphertext it is given, using the passed-in ciphertext and key. Thus, it returns plaintext again to `otp_dec`.
 
-otp_dec: Similarly, this program will connect to otp_dec_d and will ask it to decrypt ciphertext using a passed-in ciphertext and key, and otherwise performs exactly like otp_enc, and must be runnable in the same three ways. otp_dec should NOT be able to connect to otp_enc_d, even if it tries to connect on the correct port - you'll need to have the programs reject each other, as described in otp_enc.
+#### otp_dec: 
+Similarly, this program will connect to `otp_dec_d` and will ask it to decrypt ciphertext using a passed-in ciphertext and key, and otherwise performs exactly like `otp_enc`, and must be runnable in the same three ways. `otp_dec` should NOT be able to connect to `otp_enc_d`, even if it tries to connect on the correct port - you'll need to have the programs reject each other, as described in `otp_enc`.
 
-keygen: This program creates a key file of specified length. The characters in the file generated will be any of the 27 allowed characters, generated using the standard UNIX randomization methods. Do not create spaces every five characters, as has been historically done. Note that you specifically do not have to do any fancy random number generation: we’re not looking for cryptographically secure random number generation! rand() is just fine. The last character keygen outputs should be a newline. All error text must be output to stderr, if any.
+#### keygen: 
+This program creates a key file of specified length. The characters in the file generated will be any of the 27 allowed characters, generated using the standard UNIX randomization methods. Do not create spaces every five characters, as has been historically done. Note that you specifically do not have to do any fancy random number generation: we’re not looking for cryptographically secure random number generation! rand() is just fine. The last character `keygen` outputs should be a newline. All error text must be output to stderr, if any.
 
-The syntax for keygen is as follows:
+The syntax for `keygen` is as follows:
 
-keygen keylength
-Where keylength is the length of the key file in characters. keygen outputs to stdout. Here is an example run, which redirects stdout to a key file of 256 characters called “mykey” (note that mykey is 257 characters long because of the newline):
+`keygen` keylength
+Where keylength is the length of the key file in characters. `keygen` outputs to stdout. Here is an example run, which redirects stdout to a key file of 256 characters called “mykey” (note that mykey is 257 characters long because of the newline):
 
-$ keygen 256 > mykey
-Files and Scripts
+```
+keygen 256 > mykey
+```
+### Files and Scripts
 
 You are provided with 5 plaintext files to use (one, two, three, four, five). The grading will use these specific files; do not feel like you have to create others.
 
@@ -96,10 +113,10 @@ You are also provided with a grading script ("p4gradingscript") that you can run
 
 Finally, you will be required to write a compilation script (see below) that compiles all five of your programs, allowing you to use whatever C code and methods you desire. This will ease grading. Note that only C will be allowed, no C++ or any other language (Python, Perl, awk, etc.).
 
-Example
+### Example
 
 Here is an example of usage, if you were testing your code from the command line:
-
+~~~~
 $ cat plaintext1
 THE RED GOOSE FLIES AT MIDNIGHT
 $ otp_enc_d 57171 &
@@ -134,85 +151,4 @@ Error: could not contact otp_enc_d on port 57172
 $ echo $?
 2
 $
-Compilation Script
-
-You must also write a short bash shell script called “compileall” that merely compiles your five programs. For example, the first two lines might be:
-
-#!/bin/bash
-gcc -o otp_enc_d otp_enc_d.c
-…
-This script will be used to compile your software, and must successfully run on our class server. The compilation must create all five programs, in the same directory as “compileall”, for immediate use by the grading script, which is named “p4gradingscript”.
-
-What to Submit
-Please submit a single zip file of your program code, which may be in as many different files as you want. Inside that zip file, include the following files:
-
-All of your program code
-
-The compilation script named “compileall”
-
-All five plaintext# files, numbered 1 through 5
-
-A copy of the grading script named “p4gradingscript”
-
-Failing to submit one of the required pieces results in an 8-point deduction, while we attempt to contact you to submit what's missing. Your submission date & time is whenever you send in the missing piece.
-
-Hints
-Staring Points
-
-Start with our sample network programs client.cPreview the document and server.cPreview the document. These compile and function! Base your code off of these.
-
-If you have questions about what your programs needs to be able to do, just examine the grading script. Your programs have to deal with exactly what's in there: no more, no less. :)
-
-Sending Data
-
-Recall that when sending data, not all of the data may be written with just one call to send() or write(). This occurs because of network interruptions, server load, and other factors. You'll need to carefully watch the number of characters read and/or written, as appropriate. If the number returned is less than what you intended, you'll need to restart the process from where it stopped. This means you'll need to wrap a loop around the send/receive routines to ensure they finish their job before continuing.
-
-If you try to send too much data at once, the server will likely break the transmission, as in the previous paragraph. Consider setting a maximum send size, breaking the transmission yourself every 1000 characters, say.
-
-There are a few ways to handle knowing how much data you need to send in a given transmission. One way is to send an integer from client to server (or vice versa) first, informing the other side how much is coming. This relatively small integer is unlikely to be split and interrupted. Another way is to have the listening side looking for a termination character that it recognizes as the end of the transmission string. It could loop, for example, until it has seen that termination character.
-
-Concurrency Implications
-
-Remember that only one socket can be bound to a port at a time. Multiple incoming connections all queue up on the socket that has had listen() called on it for that port. After each accept() call is made, a new socket file descriptor is returned which is your server's handle to that TCP connection. The server can accept multiple incoming streams, and communicate with all of them, by continuing to call accept(), generating a new socket file descriptor each time.
-
-About Newlines
-
-You are only supposed to accept the 26 letters of alphabet and the "space" character as valid for encrypting/decrypting. However, all of the plaintext input files end with a newline character. Text files need to end in a newline character for various reasons.
-
-When one of your programs reads in an input file, strip off the newline. Then encrypt and decrypt the text string, again with no newline character. When you send the result to stdout, or save results into a file, tack a newline to the end, or your length will be off in the grading script. Note that the newline character affects the length of files as reported by the wc command! Try it!
-
-About Reusing Sockets
-
-In the p4gradingscript, you can select which ports to use: I recommend ports in the 50000+ range. However, UNIX doesn't immediately let go of the ports you use after your program finishes! I highly recommend that you frequently change and randomize the sockets you're using, to make sure you're not using sockets that someone else is playing with. In addition, to allow your program to continue to use the same port (your mileage may vary), read this:
-
-http://beej.us/guide/bgnet/output/html/singlepage/bgnet.html#setsockoptman (Links to an external site.)Links to an external site.
-
-...and then play around with this command:
-
-setsockopt(sock_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int));
-Where to Develop
-
-Finally, I HIGHLY recommend that you develop this program directly on our class server! Doing so will prevent you from having problems transferring the program back and forth, which can cause compatibility issues. Do not use any other non-class server to develop these programs.
-
-If you do see ^M characters all over your files, which come from copying a Windows-saved file onto a UNIX file system, try this command:
-
-$ dos2unix bustedFile
-Grading
-The graders will run the “compileall” script, and will then run the “p4gradingscript”. They will make a reasonable effort to make your code compile, but if it doesn’t compile, you’ll receive a zero on this assignment. If it compiles, it will have the “p4gradingscript” script ran against it for final grading, in this manner, in a bash prompt on our class server:
-
-$ ./p4gradingscript PORT1 PORT2 > mytestresults 2>&1
-The graders will change the ports around each time they run the grading script, to make sure the ports used aren't in-use. Points will be assigned according to this grading script.
-
-150 points are available in the grading script, while the final 10 points will be based on your style, readability, and commenting. Comment well, often, and verbosely (at least every five lines, say): we want to see that you are telling us WHY you are doing things, in addition to telling us WHAT you are doing.
-
-The TAs will use this exact set of instructions: Program4 Grading.pdfPreview the document to grade your submission.
-
-Submission
- Turned In!
-Mar 16, 2017 at 10:50am
-Submission Details
-Download fischjerProg4.zip
-Grade: 160 (160 pts possible)
-Graded Anonymously: no
-Comments:
-No Comments
+~~~~
